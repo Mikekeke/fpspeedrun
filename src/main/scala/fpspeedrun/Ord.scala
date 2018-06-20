@@ -1,75 +1,44 @@
 package fpspeedrun
-import fpspeedrun.Ord.{Compare, byOrdering}
-import fpspeedrun.Ord.Compare.{EQ, GT, LT}
-import simulacrum.{op, typeclass}
-import syntax.eq._
 
-import scala.annotation.tailrec
-import scala.collection.immutable.Seq
+import fpspeedrun.Ord.Compare
 
-@typeclass
-trait Ord[T] extends Eq[T] {
-  @op("<=>", alias = true) //PHP baby!
+trait Ord[T] extends Eq[T]{
   def compare(x: T, y: T): Compare
-
-  override def equal(x: T, y: T): Boolean = compare(x, y) == EQ
-
-  @op(">")
-  def gt(x: T, y: T): Boolean = compare(x, y) === GT
-  @op("<")
-  def lt(x: T, y: T): Boolean = compare(x, y) === LT
-  @op(">=")
-  def gte(x: T, y: T): Boolean = compare(x, y) =/= LT
-  @op("<=")
-  def lte(x: T, y: T): Boolean = compare(x, y) =/= GT
 }
 
-object Ord extends StdOrdInstances[Ord] {
-  import ops._
-
+object Ord{
   sealed trait Compare
   object Compare{
     case object LT extends Compare //less than
     case object EQ extends Compare //equals to
     case object GT extends Compare //greater than
-
-    implicit val eq: Eq[Compare] = Eq.fromEquals
   }
 
-  def byOrdering[T: Ordering]: Ord[T] = new FromOrdering[T]
+  implicit val doubleCompare : Ord[Double] = new Ord[Double] {
+    import fpspeedrun.syntax.eq._
+    import fpspeedrun.Eq.doubleEq
+    override def compare(x: Double, y: Double): Compare =
+      if (x === y) Compare.EQ
+      else if (x > y) Compare.GT
+      else Compare.LT
 
-  @tailrec def compareLists[T: Ord](xs: List[T], ys: List[T]): Compare =
-    xs match {
-      case Nil => if (ys.isEmpty) EQ else LT
-      case x :: xtail => ys match {
-        case Nil => GT
-        case y :: ytail =>
-          val res: Compare = x compare y
-          if (res =/= EQ) res else compareLists(xtail, ytail)
-      }
-    }
-
-  implicit def listOrd[T: Ord]: Ord[List[T]] = compareLists
-
-  implicit def vectorOrd[T: Ord]: Ord[Vector[T]] = (xs, ys) =>
-    (xs.iterator zip ys.iterator).map((Ord[T].compare _).tupled).find(_ =/= EQ).getOrElse(xs.size <=> ys.size)
-
-  implicit def seqOrd[T: Ord]: Ord[Seq[T]] = (xs, ys) =>
-    (xs, ys).zipped.collectFirst { case Compared(cmp) if cmp =/= EQ => cmp }.getOrElse(xs.size <=> ys.size)
-
-  object Compared {
-    def unapply[T: Ord](pair: (T, T)): Matched[Compare] = Matched(Ord[T].compare(pair._1, pair._2))
-  }
-
-  class FromOrdering[T](implicit ord: Ordering[T]) extends Ord[T] {
-    override def compare(x: T, y: T): Compare = {
-      val res = Ordering[T].compare(x, y)
-      if (res == 0) EQ else if (res < 0) LT else GT
-    }
+//    override def ===(x: Double, y: Double): Boolean = throw new Exception("kek")// can I tell it to use existing instances somehow?
+    override def ===(x: Double, y: Double): Boolean = doubleEq.===(x,y)
   }
 }
 
-trait StdOrdInstances[TC[t] >: Ord[t]] extends StdNumInstances[TC]{
-  final implicit val stringOrd: TC[String] = byOrdering
-  final implicit def optionOrd[A: Ord]: TC[Option[A]] = ???
-}
+
+// class Lolable a where
+// lol :: a -> String
+//
+// instance Lolable Int where
+// lol n = (show n) ++ " lold"
+//
+// class Lolable a => Kekable a where
+// kek :: a -> String
+//
+// instance Kekable Int where
+// kek n = (show n) ++ " kekd"
+//
+// funFun :: Kekable a => a -> String
+// funFun a = (lol a ) ++ " & " ++ (kek a)

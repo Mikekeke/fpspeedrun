@@ -5,23 +5,25 @@ import cats.syntax.apply._
 
 import scala.util.Random
 
-val lastDJSpiewakTweet =
-  """tldr: Sometimes, Stream#map in fs2 1.0.0-M can realign chunk boundaries. This is a break in behavior from 0.10 that can cause significant performance regression."""
+val lastJDegoesTweet =
+  """It’s growing fast. More Haskell jobs right now than at any other point in history."""
     .stripMargin
 
 val studentName = "@\\w+".r
 
-val mainCount = 1
+val mainCount = 3
 val reserveCount = 2
 
 val students = studentName.findAllIn(
   """
-    |@ybogomolov, @odbc1986, @ginger_bread_man,
-    |@prinstonsam,  @DenisKormalev,  @valekseev
+    @kurlov, @ybogomolov, @forzaken, @prinstonsam,
+    @nornic,@IceTFoer , @eniqen, @loskin
+    @imielientiev, @talys, @guga4ka, @odbc1986,
+    @igorz, @talys, @yanTarakan, @MikhailLacksh
   """
 ).toArray.sorted
 
-val seed = lastDJSpiewakTweet.##
+val seed = lastJDegoesTweet.##
 
 type Pool = IndexedSeq[String]
 type Roulette[a] = StateT[IO, Pool, a]
@@ -41,11 +43,10 @@ val chooseAll =
       .replicateA(mainCount + reserveCount)
       .runA(students)
 
-val secured = List("@yanTarakan", "@katerina_gl")
 val chosen = chooseAll.unsafeRunSync()
 
 println(
   s"""
-     |main   : ${(secured ++ chosen.take(mainCount)).mkString(", ")}
+     |main   : ${chosen.take(mainCount).mkString(", ")}
      |reserve: ${chosen.drop(mainCount).mkString(", ")}
   """.stripMargin)
